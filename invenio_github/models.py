@@ -33,6 +33,7 @@ from enum import Enum
 from invenio_accounts.models import User
 from invenio_db import db
 from invenio_records.models import RecordMetadata
+from invenio_records.api import Record
 from invenio_webhooks.models import Event
 from sqlalchemy.dialects import postgresql
 from sqlalchemy_utils.models import Timestamp
@@ -295,7 +296,9 @@ class Release(db.Model, Timestamp):
         Repository,
         backref=db.backref('releases', lazy='dynamic')
     )
-    record = db.relationship(RecordMetadata)
+
+    recordmetadata = db.relationship(RecordMetadata)
+
     event = db.relationship(Event)
 
     @classmethod
@@ -336,7 +339,23 @@ class Release(db.Model, Timestamp):
                            repo_id=repo_id))
 
     @property
+    def record(self):
+        if self.recordmetadata:
+            return Record(self.recordmetadata.json, model=self.recordmetadata)
+        else:
+            return None
+
+    @property
     def doi(self):
         """Get DOI of Release from record metadata."""
         if self.record:
-            return self.record.json.get('doi')
+            # TODO: User pidfetcher
+            return self.record.get('doi')
+
+    @property
+    def deposit_id(self):
+        if self.record and '_deposit' in self.record:
+            return self.record['_deposit']['id']
+        else:
+            return None
+
